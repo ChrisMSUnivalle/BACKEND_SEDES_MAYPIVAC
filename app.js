@@ -37,13 +37,13 @@ app.get('/data', (req, res) => {
 
 app.post('/data/add', async (req, res) => {
   const data = req.body.data;
-  
+  console.log(data);
   const query = 'INSERT INTO ubications (name, latitude, longitude) VALUES (?, ?, ?)';
   const query1 = 'DELETE FROM ubications';
   db.query(query1, (err, res)=>{});
   const promises = data.map(element => {
     return new Promise((resolve, reject) => {
-      db.query(query, [element[0], element[1], element[2]], (err, results) => {
+      db.query(query, [element.name, element.latitude, element.longitude], (err, results) => {
         if (err) {
         reject(err);
         } else {
