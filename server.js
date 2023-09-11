@@ -61,6 +61,29 @@ app.get('/user', (req, res) => {
   });
 });
 
+app.get('/cardholderbyuser/:id', (req, res) => {
+  const { id } = req.params; 
+
+  db.query('SELECT P.idPerson, P.Nombres, P.Apellidos, P.FechaNacimiento, P.Correo, P.Password, P.Carnet, P.Telefono, P.FechaCreacion, P.Status, P.Longitud, P.Latitud, R.NombreRol \
+  FROM Person P \
+  INNER JOIN Roles R on R.IdRol = P.IdRol \
+  WHERE P.idPerson = (select idJefeCampaña from Cardholder WHERE idPerson = ?);', 
+  [id], (err, results) => {
+    if (err) {
+      console.error('Error al consultar la base de datos:', err);
+      return res.status(500).json({ error: 'Error al obtener el usuario' });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Si se encontró un usuario, lo devuelve como respuesta
+    const usuario = results[0];
+    res.json(usuario);
+  });
+});
+
 app.post('/register', (req, res) => {
   // Extrae los datos del cuerpo de la solicitud
   const { Nombres, Apellidos, FechaNacimiento, Correo, Password, Carnet, Telefono, FechaCreacion, Status, Longitud, Latitud, IdRol } = req.body;
@@ -134,6 +157,21 @@ app.put('/campanas/:id', (req, res) => {
 });
 
 
+app.put('/update/:id', (req, res) => {
+  const { id, Nombres, Apellidos, Carnet, Telefono,IdRol,Latitud,Longitud,Correo } = req.body;
+  const FechaNacimiento = new Date(req.body.FechaNacimiento).toISOString().slice(0, 19).replace('T', ' ');
+  const query = 'UPDATE dbSedes.Person SET Nombres=?, Apellidos=?, FechaNacimiento=?, Carnet=?, Telefono=?, IdRol=?, Latitud=?, Longitud=?,Correo=? WHERE idPerson=?';
+  db.query(query, [Nombres, Apellidos, FechaNacimiento, Carnet, Telefono, IdRol, Latitud, Longitud, Correo, id], (err, results) => {
+    if (err) {
+      console.error('Error al Actualizar en la base de datos:', err);
+      res.status(500).json({ error: 'Error al Actualizar la persona' });
+      return;
+    }
+    res.json({ message: 'Persona Actualizada exitosamente!', data: req.body });
+  });
+});
+
+
 
 app.put('/campanas/delete/:id', (req, res) => {
   const { idCampañas, userId } = req.body;
@@ -144,16 +182,13 @@ app.put('/campanas/delete/:id', (req, res) => {
       res.status(500).json({ error: 'Error al Eliminar la campaña' });
       return;
     }
-    res.json({ message: 'Campaña Actualizada exitosamente!', data: req.body });
+    res.json({ message: 'Campaña Eliminada exitosamente!', data: req.body });
   });
 });
 
 //pasar
-
 app.get('/nextidcampanas', (req, res) => {
-
-  db.query('SELECT AUTO_INCREMENT FROM information_schema.TABLES WHERE TABLE_SCHEMA = "dbSedes" AND TABLE_NAME = "Campañas";', (err, results) => {
-
+  db.query('select MAX(idPerson) AS AUTO_INCREMENT FROM dbSedes.Campañas', (err, results) => {
     if (err) {
 
       console.error('Error al consultar la base de datos:', err);
@@ -197,37 +232,32 @@ app.get('/nextidperson', (req, res) => {
 //pasar
 
 app.post('/registerjefecarnetizador', (req, res) => {
-
-  // Extrae los datos del cuerpo de la solicitud
-
   const { idPerson, idJefeCampaña } = req.body;
-
-
-
-  // Inserta los datos en la base de datos
-
   const query = 'INSERT INTO Cardholder (idPerson, idJefeCampaña) VALUES (?, ?);';
-
   const values = [idPerson, idJefeCampaña];
 
-
-
   db.query(query, values, (err, result) => {
-
     if (err) {
-
       console.error('Error al registrar CardHolder:', err);
-
       res.status(500).json({ error: 'Error al registrar CardHolder' });
-
       return;
-
     }
-
     res.json({ message: 'CardHolder registrado exitosamente', userId: result.insertId });
-
   });
+});
 
+app.put('/updatejefecarnetizador', (req, res) => {
+  const { idPerson, idJefeCampaña } = req.body;
+  const query = 'UPDATE Cardholder SET idJefeCampaña=? WHERE idPerson=?;';
+  const values = [idJefeCampaña, idPerson];
+  db.query(query, values, (err, result) => {
+    if (err) {
+      console.error('Error al actualizar CardHolder:', err);
+      res.status(500).json({ error: 'Error al actualizar CardHolder' });
+      return;
+    }
+    res.json({ message: 'CardHolder actualizado exitosamente', userId: result.insertId });
+  });
 });
 
 
