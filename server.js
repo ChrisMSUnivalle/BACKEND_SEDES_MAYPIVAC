@@ -147,7 +147,90 @@ app.put('/campanas/delete/:id', (req, res) => {
     res.json({ message: 'Campaña Actualizada exitosamente!', data: req.body });
   });
 });
-// Resto de tu código...
+
+//pasar
+
+app.get('/nextidcampanas', (req, res) => {
+
+  db.query('SELECT AUTO_INCREMENT FROM information_schema.TABLES WHERE TABLE_SCHEMA = "dbSedes" AND TABLE_NAME = "Campañas";', (err, results) => {
+
+    if (err) {
+
+      console.error('Error al consultar la base de datos:', err);
+
+      res.status(500).json({ error: 'Error al obtener id' });
+
+      return;
+
+    }
+
+    res.json(results);
+
+  });
+
+});
+
+
+
+//pasar
+
+app.get('/nextidperson', (req, res) => {
+
+  db.query('select MAX(idPerson) AS AUTO_INCREMENT FROM dbSedes.Person', (err, results) => {
+
+    if (err) {
+
+      console.error('Error al consultar la base de datos:', err);
+
+      res.status(500).json({ error: 'Error al obtener id' });
+
+      return;
+
+    }
+
+    res.json(results);
+
+  });
+
+});
+
+//pasar
+
+app.post('/registerjefecarnetizador', (req, res) => {
+
+  // Extrae los datos del cuerpo de la solicitud
+
+  const { idPerson, idJefeCampaña } = req.body;
+
+
+
+  // Inserta los datos en la base de datos
+
+  const query = 'INSERT INTO Cardholder (idPerson, idJefeCampaña) VALUES (?, ?);';
+
+  const values = [idPerson, idJefeCampaña];
+
+
+
+  db.query(query, values, (err, result) => {
+
+    if (err) {
+
+      console.error('Error al registrar CardHolder:', err);
+
+      res.status(500).json({ error: 'Error al registrar CardHolder' });
+
+      return;
+
+    }
+
+    res.json({ message: 'CardHolder registrado exitosamente', userId: result.insertId });
+
+  });
+
+});
+
+
 
 
 
