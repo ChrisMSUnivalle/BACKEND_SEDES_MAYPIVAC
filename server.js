@@ -27,7 +27,7 @@ db.connect((err) => {
 });
 
 app.get('/allaccounts', (req, res) => {
-  db.query('SELECT idPerson, Nombres, Apellidos, FechaNacimiento, Correo, Password, Carnet, Telefono, FechaCreacion, Status, Longitud, Latitud, R.NombreRol FROM Person P INNER JOIN Roles R on R.IdRol = P.IdRol;', (err, results) => {
+  db.query('  SELECT idPerson, Nombres, Apellidos, FechaNacimiento, Correo, Password, Carnet, Telefono, FechaCreacion, Status, Longitud, Latitud, R.NombreRol FROM Person P INNER JOIN Roles R on R.IdRol = P.IdRol WHERE P.IdRol = 1 OR P.IdRol = 2 OR P.IdRol = 3;', (err, results) => {
     if (err) {
       console.error('Error al consultar la base de datos:', err);
       res.status(500).json({ error: 'Error al obtener usuarios' });
@@ -62,26 +62,26 @@ app.get('/user', (req, res) => {
 });
 
 app.get('/cardholderbyuser/:id', (req, res) => {
-  const { id } = req.params; 
+  const { id } = req.params;
 
   db.query('SELECT P.idPerson, P.Nombres, P.Apellidos, P.FechaNacimiento, P.Correo, P.Password, P.Carnet, P.Telefono, P.FechaCreacion, P.Status, P.Longitud, P.Latitud, R.NombreRol \
   FROM Person P \
   INNER JOIN Roles R on R.IdRol = P.IdRol \
-  WHERE P.idPerson = (select idJefeCampaña from Cardholder WHERE idPerson = ?);', 
-  [id], (err, results) => {
-    if (err) {
-      console.error('Error al consultar la base de datos:', err);
-      return res.status(500).json({ error: 'Error al obtener el usuario' });
-    }
+  WHERE P.idPerson = (select idJefeCampaña from Cardholder WHERE idPerson = ?);',
+    [id], (err, results) => {
+      if (err) {
+        console.error('Error al consultar la base de datos:', err);
+        return res.status(500).json({ error: 'Error al obtener el usuario' });
+      }
 
-    if (results.length === 0) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
-    }
+      if (results.length === 0) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
 
-    // Si se encontró un usuario, lo devuelve como respuesta
-    const usuario = results[0];
-    res.json(usuario);
-  });
+      // Si se encontró un usuario, lo devuelve como respuesta
+      const usuario = results[0];
+      res.json(usuario);
+    });
 });
 
 app.post('/register', (req, res) => {
@@ -158,7 +158,7 @@ app.put('/campanas/:id', (req, res) => {
 
 
 app.put('/update/:id', (req, res) => {
-  const { id, Nombres, Apellidos, Carnet, Telefono,IdRol,Latitud,Longitud,Correo } = req.body;
+  const { id, Nombres, Apellidos, Carnet, Telefono, IdRol, Latitud, Longitud, Correo } = req.body;
   const FechaNacimiento = new Date(req.body.FechaNacimiento).toISOString().slice(0, 19).replace('T', ' ');
   const query = 'UPDATE dbSedes.Person SET Nombres=?, Apellidos=?, FechaNacimiento=?, Carnet=?, Telefono=?, IdRol=?, Latitud=?, Longitud=?,Correo=? WHERE idPerson=?';
   db.query(query, [Nombres, Apellidos, FechaNacimiento, Carnet, Telefono, IdRol, Latitud, Longitud, Correo, id], (err, results) => {
