@@ -5,7 +5,23 @@ const app = express();
 
 const bodyParser = require('body-parser');
 
+const http = require('http');
+const socketIo = require('socket.io');
+const server = http.createServer(app);
+const io = socketIo(server);
 
+io.on('connection', (socket) => {
+  console.log('Un usuario se ha conectado');
+
+  socket.on('chat message', (msg) => {
+      console.log('Mensaje recibido:', msg);  
+      //io.emit('chat message', msg);
+  });
+
+  socket.on('disconnect', () => {
+      console.log('Un usuario se ha desconectado');
+  });
+});
 
 
 
@@ -25,6 +41,46 @@ db.connect((err) => {
   }
   console.log('Conexión a la base de datos establecida');
 });
+
+////////////
+app.post('/sendmessage', (req, res) => {
+  const { idPerson, idPersonDestino, mensaje } = req.body;
+
+  if (!idPerson || !idPersonDestino || !mensaje) {
+    return res.status(400).json({ error: 'Faltan parámetros' });
+  }
+
+  const query = 'INSERT INTO Mensajes (idPerson, idPersonDestino, mensaje) VALUES (?, ?, ?)';
+  db.query(query, [idPerson, idPersonDestino, mensaje], (err, result) => {
+    if (err) {
+      console.error('Error al insertar el mensaje:', err);
+      return res.status(500).json({ error: 'Error al enviar el mensaje' });
+    }
+
+    // Emitir el mensaje a otros clientes a través de socket.io
+    io.emit('chat message', mensaje);
+
+    res.json({ message: 'Mensaje enviado exitosamente' });
+  });
+});
+
+app.get('/getmessage/:id', (req, res) => {
+  const id = req.params.id;
+
+  const query = 'SELECT * FROM Mensajes WHERE idPerson = ? OR idPersonDestino = ?';
+  db.query(query,[id,id], (err, results) => {
+    if (err) {
+      console.error('Error al consultar la base de datos:', err);
+      res.status(500).json({ error: 'Error al obtener usuarios' });
+      return;
+    }
+    res.json(results);
+  });;
+});
+/////////
+
+
+
 
 app.get('/allaccounts', (req, res) => {
   db.query('  SELECT idPerson, Nombres, Apellidos, FechaNacimiento, Correo, Password, Carnet, Telefono, FechaCreacion, Status, Longitud, Latitud, R.NombreRol FROM Person P INNER JOIN Roles R on R.IdRol = P.IdRol WHERE P.IdRol = 1 OR P.IdRol = 2 OR P.IdRol = 3;', (err, results) => {
@@ -263,10 +319,8 @@ app.put('/updatejefecarnetizador', (req, res) => {
 
 
 
-
-// Configura otros middleware y rutas según sea necesario
-
 const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Servidor en funcionamiento en el puerto ${port}`);
+server.listen(3000, () => {
+  console.log('Servidor escuchando en http://localhost:3000');
 });
+
