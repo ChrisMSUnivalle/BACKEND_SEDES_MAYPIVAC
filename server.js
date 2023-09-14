@@ -316,9 +316,79 @@ app.put('/updatejefecarnetizador', (req, res) => {
   });
 });
 
+app.get('/getpersonbyid/:id', (req, res) => {
+  const { id } = req.params;
 
+  db.query('SELECT P.idPerson, P.Nombres, P.Apellidos, P.FechaNacimiento, P.Correo, P.Password, P.Carnet, P.Telefono, P.FechaCreacion, P.Status, P.Longitud, P.Latitud, R.NombreRol \
+  FROM Person P \
+  INNER JOIN Roles R on R.IdRol = P.IdRol \ WHERE idPerson = ?', [id], (err, results) => {
+    if (err) {
+      console.error('Error al consultar la base de datos:', err);
+      return res.status(500).json({ error: 'Error al obtener la persona' });
+    }
 
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Persona no encontrada' });
+    }
 
+    // Si se encontró una persona, la devuelve como respuesta
+    const persona = results[0];
+    res.json(persona);
+  });
+});
+
+app.put('/updatepersona/:id', (req, res) => {
+  const { id, Nombres, Apellidos, Carnet,Password, Telefono, IdRol, Latitud, Longitud, Correo } = req.body;
+  const FechaNacimiento = new Date(req.body.FechaNacimiento).toISOString().slice(0, 19).replace('T', ' ');
+  const query = 'UPDATE dbSedes.Person SET Nombres = ?, \
+      Apellidos = ?, \
+      FechaNacimiento = ?, \
+      Correo = ?, \
+      Password = ?\
+      Carnet = ?, \
+      Telefono = ?, \
+      IdRol = ?, \
+      Latitud = ?, \
+      Longitud = ? \
+      WHERE idPerson = ?';
+  db.query(query, [Nombres, Apellidos, FechaNacimiento, Correo, Password,Carnet, Telefono, IdRol, Latitud, Longitud, id], (err, results) => {
+    if (err) {
+      console.error('Error al Actualizar en la base de datos:', err);
+      res.status(500).json({ error: 'Error al Actualizar la persona' });
+      return;
+    }
+    res.json({ message: 'Persona Actualizada exitosamente!', data: req.body });
+  });
+});
+
+app.get('/userbyrol', (req, res) => {
+  const { correo, password } = req.query; // Obtiene el correo y la contraseña de los parámetros de consulta
+
+  if (!correo || !password) {
+    return res.status(400).json({ error: 'Debes proporcionar un correo y una contraseña.' });
+  }
+
+  // Consulta la base de datos para encontrar un usuario con el correo y la contraseña proporcionados
+  db.query('SELECT P.idPerson, P.Nombres, P.Apellidos, P.FechaNacimiento, P.Correo, P.Password, P.Carnet, \
+  P.Telefono, P.FechaCreacion, P.Status, P.Longitud, P.Latitud, R.NombreRol \
+  FROM Person P \
+  INNER JOIN Roles R on R.IdRol = P.IdRol \
+  WHERE P.Correo = ? AND P.Password = ?',
+   [correo, password], (err, results) => {
+    if (err) {
+      console.error('Error al consultar la base de datos:', err);
+      return res.status(500).json({ error: 'Error al obtener el usuario' });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Si se encontró un usuario, lo devuelve como respuesta
+    const usuario = results[0];
+    res.json(usuario);
+  });
+});
 const port = process.env.PORT || 3000;
 server.listen(3000, () => {
   console.log('Servidor escuchando en http://localhost:3000');
