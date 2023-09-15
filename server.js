@@ -44,14 +44,10 @@ db.connect((err) => {
 
 ////////////
 app.post('/sendmessage', (req, res) => {
-  const { idPerson, idPersonDestino, mensaje } = req.body;
+  const { idPerson, mensaje, idChat } = req.body;
 
-  if (!idPerson || !idPersonDestino || !mensaje) {
-    return res.status(400).json({ error: 'Faltan parámetros' });
-  }
-
-  const query = 'INSERT INTO Mensajes (idPerson, idPersonDestino, mensaje) VALUES (?, ?, ?)';
-  db.query(query, [idPerson, idPersonDestino, mensaje], (err, result) => {
+  const query = 'INSERT INTO dbSedes.Mensajes(idPerson, mensaje, idChat) VALUES(?, ?, ?);';
+  db.query(query, [idPerson, mensaje, idChat], (err, result) => {
     if (err) {
       console.error('Error al insertar el mensaje:', err);
       return res.status(500).json({ error: 'Error al enviar el mensaje' });
@@ -67,7 +63,32 @@ app.post('/sendmessage', (req, res) => {
 app.get('/getmessage/:id', (req, res) => {
   const id = req.params.id;
 
-  const query = 'SELECT * FROM Mensajes WHERE idPerson = ? OR idPersonDestino = ?';
+  const query = 'SELECT * FROM Mensajes WHERE idChat = ?';
+  db.query(query,[id], (err, results) => {
+    if (err) {
+      console.error('Error al consultar la base de datos:', err);
+      res.status(500).json({ error: 'Error al obtener usuarios' });
+      return;
+    }
+    res.json(results);
+  });;
+});
+
+app.get('/getchats/:id', (req, res) => {
+  const id = req.params.id;
+
+  const query = 'WITH LastMessageDates AS ( \
+    SELECT  \
+        idChat,  \
+        MAX(fechaRegistro) as LastDate \
+    FROM dbSedes.Mensajes \
+    GROUP BY idChat \
+)\
+SELECT C.* \
+FROM dbSedes.Chats C \
+LEFT JOIN LastMessageDates LMD ON C.idChats = LMD.idChat \
+WHERE C.idPerson =? OR C.idPersonDestino=? \
+ORDER BY LMD.LastDate DESC;';
   db.query(query,[id,id], (err, results) => {
     if (err) {
       console.error('Error al consultar la base de datos:', err);
@@ -77,6 +98,35 @@ app.get('/getmessage/:id', (req, res) => {
     res.json(results);
   });;
 });
+
+app.get('/getnamespersondestino/:id', (req, res) => {
+  const id = req.params.id;
+
+  const query = "WITH LastMessages AS ( \
+    SELECT  \
+        idChat, \
+        MAX(fechaRegistro) as LastDate \
+    FROM dbSedes.Mensajes \
+    GROUP BY idChat \
+) \
+SELECT P.Nombres, COALESCE(M.mensaje, '') as mensaje \
+FROM dbSedes.Person P \
+LEFT JOIN dbSedes.Chats C ON C.idPersonDestino = P.idPerson \
+LEFT JOIN dbSedes.Mensajes M ON M.idChat = C.idChats \
+LEFT JOIN LastMessages LM ON LM.idChat = M.idChat \
+WHERE C.idPerson = ? OR C.idPersonDestino=? AND LM.LastDate = M.fechaRegistro \
+ORDER BY M.fechaRegistro DESC;"; 
+  db.query(query,[id,id], (err, results) => { 
+    if (err) {
+      console.error('Error al consultar la base de datos:', err);
+      res.status(500).json({ error: 'Error al obtener usuarios' });
+      return;
+    }
+    res.json(results);
+  });;
+});
+
+
 /////////
 
 
