@@ -14,12 +14,12 @@ io.on('connection', (socket) => {
   console.log('Un usuario se ha conectado');
 
   socket.on('chat message', (msg) => {
-      console.log('Mensaje recibido:', msg);  
-      //io.emit('chat message', msg);
+    console.log('Mensaje recibido:', msg);
+    //io.emit('chat message', msg);
   });
 
   socket.on('disconnect', () => {
-      console.log('Un usuario se ha desconectado');
+    console.log('Un usuario se ha desconectado');
   });
 });
 
@@ -64,7 +64,7 @@ app.get('/getmessage/:id', (req, res) => {
   const id = req.params.id;
 
   const query = 'SELECT * FROM Mensajes WHERE idChat = ?';
-  db.query(query,[id], (err, results) => {
+  db.query(query, [id], (err, results) => {
     if (err) {
       console.error('Error al consultar la base de datos:', err);
       res.status(500).json({ error: 'Error al obtener usuarios' });
@@ -89,7 +89,7 @@ FROM dbSedes.Chats C \
 LEFT JOIN LastMessageDates LMD ON C.idChats = LMD.idChat \
 WHERE C.idPerson =? OR C.idPersonDestino=? \
 ORDER BY LMD.LastDate DESC;';
-  db.query(query,[id,id], (err, results) => {
+  db.query(query, [id, id], (err, results) => {
     if (err) {
       console.error('Error al consultar la base de datos:', err);
       res.status(500).json({ error: 'Error al obtener usuarios' });
@@ -115,8 +115,8 @@ LEFT JOIN dbSedes.Chats C ON C.idPersonDestino = P.idPerson \
 LEFT JOIN dbSedes.Mensajes M ON M.idChat = C.idChats \
 LEFT JOIN LastMessages LM ON LM.idChat = M.idChat \
 WHERE C.idPerson = ? OR C.idPersonDestino=? AND LM.LastDate = M.fechaRegistro \
-ORDER BY M.fechaRegistro DESC;"; 
-  db.query(query,[id,id], (err, results) => { 
+ORDER BY M.fechaRegistro DESC;";
+  db.query(query, [id, id], (err, results) => {
     if (err) {
       console.error('Error al consultar la base de datos:', err);
       res.status(500).json({ error: 'Error al obtener usuarios' });
@@ -388,7 +388,7 @@ app.get('/getpersonbyid/:id', (req, res) => {
 });
 
 app.put('/updatepersona/:id', (req, res) => {
-  const { id, Nombres, Apellidos, Carnet,Password, Telefono, IdRol, Latitud, Longitud, Correo } = req.body;
+  const { id, Nombres, Apellidos, Carnet, Password, Telefono, IdRol, Latitud, Longitud, Correo } = req.body;
   const FechaNacimiento = new Date(req.body.FechaNacimiento).toISOString().slice(0, 19).replace('T', ' ');
   const query = 'UPDATE dbSedes.Person SET Nombres = ?, \
       Apellidos = ?, \
@@ -401,7 +401,7 @@ app.put('/updatepersona/:id', (req, res) => {
       Latitud = ?, \
       Longitud = ? \
       WHERE idPerson = ?';
-  db.query(query, [Nombres, Apellidos, FechaNacimiento, Correo, Password,Carnet, Telefono, IdRol, Latitud, Longitud, id], (err, results) => {
+  db.query(query, [Nombres, Apellidos, FechaNacimiento, Correo, Password, Carnet, Telefono, IdRol, Latitud, Longitud, id], (err, results) => {
     if (err) {
       console.error('Error al Actualizar en la base de datos:', err);
       res.status(500).json({ error: 'Error al Actualizar la persona' });
@@ -424,23 +424,23 @@ app.get('/userbyrol', (req, res) => {
   FROM Person P \
   INNER JOIN Roles R on R.IdRol = P.IdRol \
   WHERE P.Correo = ? AND P.Password = ?',
-   [correo, password], (err, results) => {
-    if (err) {
-      console.error('Error al consultar la base de datos:', err);
-      return res.status(500).json({ error: 'Error al obtener el usuario' });
-    }
+    [correo, password], (err, results) => {
+      if (err) {
+        console.error('Error al consultar la base de datos:', err);
+        return res.status(500).json({ error: 'Error al obtener el usuario' });
+      }
 
-    if (results.length === 0) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
-    }
+      if (results.length === 0) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
 
-    // Si se encontró un usuario, lo devuelve como respuesta
-    const usuario = results[0];
-    res.json(usuario);
-  });
+      // Si se encontró un usuario, lo devuelve como respuesta
+      const usuario = results[0];
+      res.json(usuario);
+    });
 });
 const port = process.env.PORT || 3000;
-server.listen(3000, () => {
+server.listen(port, () => {
   console.log('Servidor escuchando en http://localhost:3000');
 });
 
