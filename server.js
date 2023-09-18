@@ -54,7 +54,21 @@ app.post('/sendmessage', (req, res) => {
     }
 
     // Emitir el mensaje a otros clientes a través de socket.io
-    io.emit('chat message', mensaje);
+    io.emit('chat message', [idPerson,mensaje]);
+
+    res.json({ message: 'Mensaje enviado exitosamente' });
+  });
+});
+
+app.post('/insertchat', (req, res) => {
+  const { idPerson, idPersonDestino } = req.body;
+
+  const query = 'INSERT INTO dbSedes.Chats(idPerson, idPersonDestino) VALUES(?, ?);';
+  db.query(query, [idPerson, idPersonDestino ], (err, result) => {
+    if (err) {
+      console.error('Error al insertar el chat:', err);
+      return res.status(500).json({ error: 'Error al insertar chat' });
+    }
 
     res.json({ message: 'Mensaje enviado exitosamente' });
   });
@@ -109,14 +123,18 @@ app.get('/getnamespersondestino/:id', (req, res) => {
     FROM dbSedes.Mensajes \
     GROUP BY idChat \
 ) \
-SELECT P.Nombres, COALESCE(M.mensaje, '') as mensaje \
+, LastMessageDetails AS (\
+    SELECT M.idChat, M.mensaje, M.fechaRegistro\
+    FROM dbSedes.Mensajes M\
+    JOIN LastMessages LM ON M.idChat = LM.idChat AND M.fechaRegistro = LM.LastDate\
+)\
+SELECT P.idPerson, P.Nombres, COALESCE(LMD.mensaje, '') as mensaje \
 FROM dbSedes.Person P \
-LEFT JOIN dbSedes.Chats C ON C.idPersonDestino = P.idPerson \
-LEFT JOIN dbSedes.Mensajes M ON M.idChat = C.idChats \
-LEFT JOIN LastMessages LM ON LM.idChat = M.idChat \
-WHERE C.idPerson = ? OR C.idPersonDestino=? AND LM.LastDate = M.fechaRegistro \
-ORDER BY M.fechaRegistro DESC;";
-  db.query(query, [id, id], (err, results) => {
+LEFT JOIN dbSedes.Chats C ON C.idPersonDestino = P.idPerson OR C.idPerson = P.idPerson \
+LEFT JOIN LastMessageDetails LMD ON LMD.idChat = C.idChats \
+WHERE (C.idPerson = ? OR C.idPersonDestino = ?) AND P.idPerson !=?\
+ORDER BY LMD.fechaRegistro DESC;";
+  db.query(query, [id, id, id], (err, results) => {
     if (err) {
       console.error('Error al consultar la base de datos:', err);
       res.status(500).json({ error: 'Error al obtener usuarios' });
@@ -124,6 +142,29 @@ ORDER BY M.fechaRegistro DESC;";
     }
     res.json(results);
   });;
+});
+
+app.get('/lastidchat', (req, res) => {
+  db.query('select idChats AS AUTO_INCREMENT FROM dbSedes.Chats WHERE idChats=LAST_INSERT_ID()', (err, results) => {
+    if (err) {
+      console.error('Error al consultar la base de datos:', err);
+      res.status(500).json({ error: 'Error al obtener id' });
+      return;
+    }
+    res.json(results);
+  });
+});
+
+app.get('/getpersonbyemail/:correo', (req, res) => {
+  const email = req.params.correo;
+  db.query('SELECT idPerson FROM dbSedes.Person WHERE correo = ?',[email], (err, results) => {
+    if (err) {
+      console.error('Error al consultar la base de datos:', err);
+      res.status(500).json({ error: 'Error al obtener id' });
+      return;
+    }
+    res.json(results);
+  });
 });
 
 
