@@ -28,10 +28,10 @@ io.on('connection', (socket) => {
 app.use(bodyParser.json());
 
 const db = mysql.createConnection({
-  host: '35.199.97.123',
-  user: 'root',
+  host: '181.188.191.35',
+  user: 'bdsedes',
   password: 'bdsedes123',
-  database: 'dbSedes',
+  database: 'dbsedes',
 });
 
 db.connect((err) => {
@@ -42,7 +42,6 @@ db.connect((err) => {
   console.log('Conexión a la base de datos establecida');
 });
 
-////////////
 app.post('/sendmessage', (req, res) => {
   const { idPerson, mensaje, idChat } = req.body;
 
@@ -73,11 +72,13 @@ app.post('/insertchat', (req, res) => {
     res.json({ message: 'Mensaje enviado exitosamente' });
   });
 });
-
+////////////19/09
 app.get('/getmessage/:id', (req, res) => {
   const id = req.params.id;
 
-  const query = 'SELECT * FROM Mensajes WHERE idChat = ?';
+  const query = 'SELECT M.*, P.Nombres FROM dbsedes.Mensajes M \
+  inner join dbsedes.Person P ON P.idPerson = M.idPerson \
+  WHERE idChat = ?;';
   db.query(query, [id], (err, results) => {
     if (err) {
       console.error('Error al consultar la base de datos:', err);
@@ -88,6 +89,7 @@ app.get('/getmessage/:id', (req, res) => {
   });;
 });
 
+/////////////////////////////////////////////////////////19/09
 app.get('/getchats/:id', (req, res) => {
   const id = req.params.id;
 
@@ -101,8 +103,11 @@ app.get('/getchats/:id', (req, res) => {
 SELECT C.* \
 FROM dbSedes.Chats C \
 LEFT JOIN LastMessageDates LMD ON C.idChats = LMD.idChat \
-WHERE C.idPerson =? OR C.idPersonDestino=? \
-ORDER BY LMD.LastDate DESC;';
+WHERE C.idPerson =? OR C.idPersonDestino=? OR C.idPerson IS NULL \
+ORDER BY \
+    CASE WHEN LMD.LastDate IS NULL THEN 1 ELSE 0 END, \
+    LMD.LastDate DESC, \
+    C.idPersonDestino; ';
   db.query(query, [id, id], (err, results) => {
     if (err) {
       console.error('Error al consultar la base de datos:', err);
@@ -112,7 +117,7 @@ ORDER BY LMD.LastDate DESC;';
     res.json(results);
   });;
 });
-
+////////////////////19/09
 app.get('/getnamespersondestino/:id', (req, res) => {
   const id = req.params.id;
 
@@ -132,8 +137,12 @@ SELECT P.idPerson, P.Nombres, COALESCE(LMD.mensaje, '') as mensaje \
 FROM dbSedes.Person P \
 LEFT JOIN dbSedes.Chats C ON C.idPersonDestino = P.idPerson OR C.idPerson = P.idPerson \
 LEFT JOIN LastMessageDetails LMD ON LMD.idChat = C.idChats \
-WHERE (C.idPerson = ? OR C.idPersonDestino = ?) AND P.idPerson !=?\
-ORDER BY LMD.fechaRegistro DESC;";
+WHERE (C.idPerson = ? OR C.idPersonDestino = ?  OR(C.idPerson IS NULL AND P.idRol=4)) AND P.idPerson !=?\
+ORDER BY \
+    CASE WHEN LMD.fechaRegistro IS NULL THEN 1 ELSE 0 END, \
+    LMD.fechaRegistro DESC, \
+    C.idPersonDestino; \
+";
   db.query(query, [id, id, id], (err, results) => {
     if (err) {
       console.error('Error al consultar la base de datos:', err);
@@ -155,6 +164,19 @@ app.get('/lastidchat', (req, res) => {
   });
 });
 
+/////////////////////////////////////////////19/09
+app.get('/getidrol/:id', (req, res) => {
+  const id = req.params.id
+  db.query('SELECT idRol FROM dbsedes.person WHERE idPerson = ?;',[Number.parseInt(id)], (err, results) => {
+    if (err) {
+      console.error('Error al consultar la base de datos:', err);
+      res.status(500).json({ error: 'Error al obtener id' });
+      return;
+    }
+    res.json(results);
+  });
+});
+
 app.get('/getpersonbyemail/:correo', (req, res) => {
   const email = req.params.correo;
   db.query('SELECT idPerson FROM dbSedes.Person WHERE correo = ?',[email], (err, results) => {
@@ -167,8 +189,6 @@ app.get('/getpersonbyemail/:correo', (req, res) => {
   });
 });
 
-
-/////////
 
 
 
