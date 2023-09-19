@@ -5,6 +5,9 @@ const app = express();
 
 const bodyParser = require('body-parser');
 
+const morgan = require('morgan');
+
+
 const http = require('http');
 const socketIo = require('socket.io');
 const server = http.createServer(app);
@@ -27,9 +30,12 @@ io.on('connection', (socket) => {
 
 app.use(bodyParser.json());
 
+app.use(morgan('combined')); // Puedes ajustar el formato según tus preferencias
+
+
 const db = mysql.createConnection({
-  host: '35.199.97.123',
-  user: 'root',
+  host: '181.188.191.35',
+  user: 'bdsedes',
   password: 'bdsedes123',
   database: 'dbSedes',
 });
@@ -387,60 +393,133 @@ app.get('/getpersonbyid/:id', (req, res) => {
   });
 });
 
-app.put('/updatepersona/:id', (req, res) => {
-  const { id, Nombres, Apellidos, Carnet, Password, Telefono, IdRol, Latitud, Longitud, Correo } = req.body;
-  const FechaNacimiento = new Date(req.body.FechaNacimiento).toISOString().slice(0, 19).replace('T', ' ');
-  const query = 'UPDATE dbSedes.Person SET Nombres = ?, \
-      Apellidos = ?, \
-      FechaNacimiento = ?, \
-      Correo = ?, \
-      Password = ?\
-      Carnet = ?, \
-      Telefono = ?, \
-      IdRol = ?, \
-      Latitud = ?, \
-      Longitud = ? \
-      WHERE idPerson = ?';
-  db.query(query, [Nombres, Apellidos, FechaNacimiento, Correo, Password, Carnet, Telefono, IdRol, Latitud, Longitud, id], (err, results) => {
+app.get('/checkCodeExists/:userId', (req, res) => {
+  const { userId } = req.params;
+  const query = 'SELECT COUNT(*) AS count FROM CodigoPersona WHERE idCodigo_Persona=?';
+
+  // Aquí debes ejecutar la consulta SQL para verificar si existe un código para el usuario
+  // Usa tu librería de base de datos preferida (por ejemplo, mysql2 o sequelize)
+
+  db.query(query, [userId], (err, results) => {
     if (err) {
-      console.error('Error al Actualizar en la base de datos:', err);
-      res.status(500).json({ error: 'Error al Actualizar la persona' });
+      console.error('Error al verificar el código en la base de datos:', err);
+      res.status(500).json({ error: 'Error al verificar el código' });
       return;
     }
-    res.json({ message: 'Persona Actualizada exitosamente!', data: req.body });
+    const count = results[0].count;
+    res.json({ exists: count > 0 });
   });
 });
 
-app.get('/userbyrol', (req, res) => {
-  const { correo, password } = req.query; // Obtiene el correo y la contraseña de los parámetros de consulta
+app.put('/updateCode/:userId/:code', (req, res) => {
+  const { userId, code } = req.params;
+  const query = 'UPDATE CodigoPersona SET Codigo=?, FechaActualizacion=NOW() WHERE idCodigo_Persona=?';
 
-  if (!correo || !password) {
-    return res.status(400).json({ error: 'Debes proporcionar un correo y una contraseña.' });
-  }
+  // Aquí debes ejecutar la consulta SQL para actualizar el código
+  // Usa tu librería de base de datos preferida (por ejemplo, mysql2 o sequelize)
 
-  // Consulta la base de datos para encontrar un usuario con el correo y la contraseña proporcionados
-  db.query('SELECT P.idPerson, P.Nombres, P.Apellidos, P.FechaNacimiento, P.Correo, P.Password, P.Carnet, \
-  P.Telefono, P.FechaCreacion, P.Status, P.Longitud, P.Latitud, R.NombreRol \
-  FROM Person P \
-  INNER JOIN Roles R on R.IdRol = P.IdRol \
-  WHERE P.Correo = ? AND P.Password = ?',
-    [correo, password], (err, results) => {
-      if (err) {
-        console.error('Error al consultar la base de datos:', err);
-        return res.status(500).json({ error: 'Error al obtener el usuario' });
-      }
-
-      if (results.length === 0) {
-        return res.status(404).json({ error: 'Usuario no encontrado' });
-      }
-
-      // Si se encontró un usuario, lo devuelve como respuesta
-      const usuario = results[0];
-      res.json(usuario);
-    });
+  db.query(query, [code, userId], (err, results) => {
+    if (err) {
+      console.error('Error al actualizar el código en la base de datos:', err);
+      res.status(500).json({ error: 'Error al actualizar el código' });
+      return;
+    }
+    res.json({ message: 'Código actualizado exitosamente' });
+  });
 });
+
+app.post('/insertCode/:userId/:code', (req, res) => {
+  const { userId, code } = req.params;
+  const query = 'INSERT INTO codigopersona (idCodigo_Persona, Codigo, Status, FechaRegistro, FechaActualizacion) VALUES (?, ?, 1, NOW(), NOW())';
+
+  // Aquí debes ejecutar la consulta SQL para insertar un nuevo registro
+  // Usa tu librería de base de datos preferida (por ejemplo, mysql2 o sequelize)
+
+  db.query(query, [userId, code], (err, results) => {
+    if (err) {
+      console.error('Error al insertar el código en la base de datos:', err);
+      res.status(500).json({ error: 'Error al insertar el código' });
+      return;
+    }
+    res.json({ message: 'Código insertado exitosamente' });
+  });
+});
+
+app.get('/checkemail/:email', (req, res) => {
+  const { email } = req.params;
+
+  // Realiza una consulta a tu base de datos para verificar si el correo existe
+  const query = 'SELECT idPerson, Nombres, Correo, FechaCreacion, Longitud, Latitud FROM Person P INNER JOIN Roles R on R.IdRol = P.IdRol WHERE Correo = ?';
+  db.query(query, [email], (err, results) => {
+    if (err) {
+      console.error('Error al consultar la base de datos:', err);
+      return res.status(500).json({ error: 'Error al consultar la base de datos' });
+    }
+
+    if (results.length === 0) {
+      // El correo no existe en la base de datos
+      return res.status(404).json({ error: 'Correo no encontrado' });
+    }
+
+    // El correo existe en la base de datos, devuelve el idPerson
+    const result = results[0] // Cambiado a idPerson
+    res.json({ result }); // Cambiado a idPerson
+  });
+});
+
+app.get('/validateCode', (req, res) => {
+  const userId = req.query.userId;
+  const code = req.query.code;
+
+  const sql = 'SELECT * FROM codigopersona WHERE idCodigo_Persona = ? AND Codigo = ?';
+
+  db.query(sql, [userId, code], (err, results) => {
+    if (err) {
+      console.error('Error al ejecutar la consulta SQL: ' + err.stack);
+      res.status(500).json({ success: false, message: 'Error en el servidor' });
+      return;
+    }
+
+    if (results.length === 0) {
+      // No se encontró ningún código válido
+      res.json({ success: false, message: 'El código OTP no es válido' });
+    } else {
+      // Se encontró un código válido
+      res.json({ success: true, message: 'El código OTP es válido' });
+    }
+  });
+});
+
+// Agrega esta ruta para cambiar la contraseña
+app.put('/changePassword', (req, res) => {
+  const userId = req.body.userId; // Accede al userId desde el cuerpo de la solicitud
+  const newPassword = req.body.newPassword;
+
+  // Realiza una consulta SQL para actualizar la contraseña
+  const sql = 'UPDATE person SET Password = ? WHERE idPerson = ?';
+
+  db.query(sql, [newPassword, userId], (err, results) => {
+    if (err) {
+      console.error('Error al cambiar la contraseña: ' + err.stack);
+      res.status(500).json({ success: false, message: 'Error en el servidor' });
+      return;
+    }
+
+    if (results.affectedRows > 0) {
+      // Contraseña cambiada con éxito
+      res.json({ success: true, message: 'Contraseña cambiada con éxito' });
+    } else {
+      // No se encontró ningún usuario con el ID proporcionado
+      res.json({ success: false, message: 'Usuario no encontrado' });
+    }
+  });
+});
+
+
+
+
 const port = process.env.PORT || 3000;
-server.listen(port, () => {
-  console.log('Servidor escuchando en http://localhost:3000');
+server.listen(port, '0.0.0.0', () => {
+  console.log(`Servidor escuchando en http://0.0.0.0:${port}`);
 });
 
