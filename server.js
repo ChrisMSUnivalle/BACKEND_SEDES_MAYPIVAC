@@ -78,7 +78,7 @@ app.post('/insertchat', (req, res) => {
     res.json({ message: 'Mensaje enviado exitosamente' });
   });
 });
-////////////19/09
+
 app.get('/getmessage/:id', (req, res) => {
   const id = req.params.id;
 
@@ -95,7 +95,9 @@ app.get('/getmessage/:id', (req, res) => {
   });;
 });
 
-/////////////////////////////////////////////////////////19/09
+
+/////////////////////////////CAMBIO STATUS//////////////////
+
 app.get('/getchats/:id', (req, res) => {
   const id = req.params.id;
 
@@ -109,7 +111,7 @@ app.get('/getchats/:id', (req, res) => {
 SELECT C.* \
 FROM dbSedes.Chats C \
 LEFT JOIN LastMessageDates LMD ON C.idChats = LMD.idChat \
-WHERE C.idPerson =? OR C.idPersonDestino=? OR C.idPerson IS NULL \
+WHERE (C.idPerson =? OR C.idPersonDestino=? OR C.idPerson IS NULL) AND C.status=1 AND LMD.idChat IS NOT NULL \
 ORDER BY \
     CASE WHEN LMD.LastDate IS NULL THEN 1 ELSE 0 END, \
     LMD.LastDate DESC, \
@@ -123,7 +125,52 @@ ORDER BY \
     res.json(results);
   });;
 });
-////////////////////19/09
+
+////////////NUEVO METODO////////////
+app.get('/getchatcliente/:id', (req, res) => {
+  const id = req.params.id;
+
+  const query = '  WITH LastMessageDates AS ( \
+    SELECT  \
+        idChat,  \
+        MAX(fechaRegistro) as LastDate \
+    FROM dbSedes.Mensajes \
+    GROUP BY idChat \
+) \
+SELECT C.* \
+FROM dbSedes.Chats C \
+LEFT JOIN LastMessageDates LMD ON C.idChats = LMD.idChat \
+WHERE (C.idPerson =? OR C.idPersonDestino=? AND C.idPerson IS NULL) AND C.status=1 \
+ORDER BY \
+    CASE WHEN LMD.LastDate IS NULL THEN 1 ELSE 0 END, \
+    LMD.LastDate DESC, \
+    C.idPersonDestino; ';
+  db.query(query, [id, id], (err, results) => {
+    if (err) {
+      console.error('Error al consultar la base de datos:', err);
+      res.status(500).json({ error: 'Error al obtener usuarios' });
+      return;
+    }
+    res.json(results);
+  });;
+});
+
+/////////////NUEVO METODO/////////////
+app.put('/deletechat/:id', (req, res) => {
+  const id = req.params.id;
+
+  const query = 'UPDATE dbsedes.chats SET status=0 WHERE idChats=?';
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      console.error('Error al eliminar chat:', err);
+      res.status(500).json({ error: 'Error al eliminar chat' });
+      return;
+    }
+    res.json(results);
+  });;
+});
+
+//////////////CAMBIO STATUS//////////
 app.get('/getnamespersondestino/:id', (req, res) => {
   const id = req.params.id;
 
@@ -143,7 +190,7 @@ SELECT P.idPerson, P.Nombres, COALESCE(LMD.mensaje, '') as mensaje \
 FROM dbSedes.Person P \
 LEFT JOIN dbSedes.Chats C ON C.idPersonDestino = P.idPerson OR C.idPerson = P.idPerson \
 LEFT JOIN LastMessageDetails LMD ON LMD.idChat = C.idChats \
-WHERE (C.idPerson = ? OR C.idPersonDestino = ?  OR(C.idPerson IS NULL AND P.idRol=4)) AND P.idPerson !=?\
+WHERE (C.idPerson = ? OR C.idPersonDestino = ?  OR(C.idPerson IS NULL AND P.idRol=4)) AND P.idPerson !=?  AND C.status=1 AND mensaje!='' \
 ORDER BY \
     CASE WHEN LMD.fechaRegistro IS NULL THEN 1 ELSE 0 END, \
     LMD.fechaRegistro DESC, \
@@ -170,7 +217,7 @@ app.get('/lastidchat', (req, res) => {
   });
 });
 
-/////////////////////////////////////////////19/09
+
 app.get('/getidrol/:id', (req, res) => {
   const id = req.params.id
   db.query('SELECT idRol FROM dbsedes.person WHERE idPerson = ?;',[Number.parseInt(id)], (err, results) => {
