@@ -7,6 +7,16 @@ const bodyParser = require('body-parser');
 
 const morgan = require('morgan');
 
+//////////////NUEVO//////npm install firebase-admin
+////////////npm install node-fetch@2
+const admin = require('firebase-admin');
+const serviceAccount = require('./serviceAccountKey.json');
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+//////////////////
+
 
 const http = require('http');
 const socketIo = require('socket.io');
@@ -48,8 +58,13 @@ db.connect((err) => {
   console.log('Conexión a la base de datos establecida');
 });
 
+//////////////25/09 UPDATE///////////////
+const fetch = require('node-fetch');
+
+
+
 app.post('/sendmessage', (req, res) => {
-  const { idPerson, mensaje, idChat } = req.body;
+  const { idPerson, mensaje, idChat, Nombres } = req.body;
 
   const query = 'INSERT INTO dbSedes.Mensajes(idPerson, mensaje, idChat) VALUES(?, ?, ?);';
   db.query(query, [idPerson, mensaje, idChat], (err, result) => {
@@ -59,11 +74,64 @@ app.post('/sendmessage', (req, res) => {
     }
 
     // Emitir el mensaje a otros clientes a través de socket.io
-    io.emit('chat message', [idPerson,mensaje]);
+    io.emit('chat message', [idPerson, mensaje, Nombres]);
+
+    const chatQuery = 'SELECT * FROM dbsedes.chats WHERE idChats = ?;';
+    db.query(chatQuery, [idChat], (err, chats) => {
+      if (err) {
+        console.error('Error al recuperar el chat:', err);
+        return;
+      }
+
+      if (chats.length > 0) {
+        const chat = chats[0];
+        let recipientId;
+
+        if ((chat.idPerson === null && chat.idPersonDestino!==idPerson)  || chat.idPerson === idPerson) {
+          recipientId = chat.idPersonDestino;
+        } else{
+          recipientId = chat.idPerson;
+        }
+        if(recipientId===null){
+          return;
+        }
+
+        const tokensQuery = 'SELECT token FROM dbsedes.tokens WHERE idPerson = ?;';
+        db.query(tokensQuery, [recipientId], async (err, tokens) => {
+          if (err) {
+            console.error('Error al recuperar los tokens:', err);
+            return;
+          }
+
+          for (const tokenObj of tokens) {
+            const token = tokenObj.token;
+            await sendNotification(token, Nombres, mensaje);
+          }
+        });
+      }
+    });
 
     res.json({ message: 'Mensaje enviado exitosamente' });
   });
 });
+
+async function sendNotification(token, title, body) {
+  const message = {
+    notification: {
+      title: title,
+      body: body,
+    },
+    token: token,
+  };
+
+  try {
+    const response = await admin.messaging().send(message);
+    console.log('Mensaje enviado exitosamente:', response);
+  } catch (error) {
+    console.error('Error al enviar el mensaje:', error);
+  }
+}
+/////////////////CIERRA UPDATE
 
 app.post('/insertchat', (req, res) => {
   const { idPerson, idPersonDestino } = req.body;
@@ -78,6 +146,39 @@ app.post('/insertchat', (req, res) => {
     res.json({ message: 'Mensaje enviado exitosamente' });
   });
 });
+
+//////////////////25/09Lunes//////////////NUEVO METODO/////////////
+app.post('/inserttoken', (req, res) => {
+  const { token, idPerson } = req.body;
+  const checkQuery = 'SELECT * FROM dbsedes.tokens WHERE token = ?;';
+  db.query(checkQuery, [token], (err, result) => {
+    if (err) {
+      console.error('Error al verificar el token:', err);
+      return res.status(500).json({ error: 'Error al verificar token' });
+    }
+    if (result.length > 0) {
+      const updateQuery = 'UPDATE dbsedes.tokens SET idPerson = ? WHERE token = ?;';
+      db.query(updateQuery, [idPerson, token], (err, result) => {
+        if (err) {
+          console.error('Error al actualizar el token:', err);
+          return res.status(500).json({ error: 'Error al actualizar token' });
+        }
+        res.json({ message: 'Token actualizado exitosamente' });
+      });
+    } else {
+      const insertQuery = 'INSERT INTO dbsedes.tokens(token, idPerson) VALUES(?,?);';
+      db.query(insertQuery, [token, idPerson], (err, result) => {
+        if (err) {
+          console.error('Error al insertar el token:', err);
+          return res.status(500).json({ error: 'Error al insertar token' });
+        }
+        res.json({ message: 'Token registrado exitosamente' });
+      });
+    }
+  });
+});
+
+
 
 app.get('/getmessage/:id', (req, res) => {
   const id = req.params.id;
