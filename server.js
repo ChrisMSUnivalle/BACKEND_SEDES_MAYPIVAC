@@ -74,7 +74,7 @@ app.post('/sendmessage', (req, res) => {
     }
 
     // Emitir el mensaje a otros clientes a través de socket.io
-    io.emit('chat message', [idPerson, mensaje, Nombres]);
+    io.emit('chat message', [idPerson, mensaje, Nombres, idChat]);
 
     const chatQuery = 'SELECT * FROM dbsedes.chats WHERE idChats = ?;';
     db.query(chatQuery, [idChat], (err, chats) => {
@@ -96,7 +96,7 @@ app.post('/sendmessage', (req, res) => {
           return;
         }
 
-        const tokensQuery = 'SELECT token FROM dbsedes.tokens WHERE idPerson = ?;';
+        const tokensQuery = 'SELECT idPerson, token FROM dbsedes.tokens WHERE idPerson = ? AND status=1;'; ///////26/09 WHERE status
         db.query(tokensQuery, [recipientId], async (err, tokens) => {
           if (err) {
             console.error('Error al recuperar los tokens:', err);
@@ -105,7 +105,8 @@ app.post('/sendmessage', (req, res) => {
 
           for (const tokenObj of tokens) {
             const token = tokenObj.token;
-            await sendNotification(token, Nombres, mensaje);
+            const tokenData = { idChat: idChat };
+            await sendNotification(token, Nombres, mensaje, tokenData);/////////////////26/09
           }
         });
       }
@@ -115,7 +116,7 @@ app.post('/sendmessage', (req, res) => {
   });
 });
 
-async function sendNotification(token, title, body) {
+async function sendNotification(token, title, body, additionalData) {///////////////26/09
   const message = {
     notification: {
       title: title,
@@ -124,6 +125,15 @@ async function sendNotification(token, title, body) {
     token: token,
   };
 
+  if (additionalData && typeof additionalData === 'object' && Object.keys(additionalData).length > 0) {
+    const stringData = {};
+    for (const key in additionalData) {
+      stringData[key] = String(additionalData[key]);
+    }
+    message.data = stringData;
+    console.log(message.data);
+  }
+
   try {
     const response = await admin.messaging().send(message);
     console.log('Mensaje enviado exitosamente:', response);
@@ -131,6 +141,8 @@ async function sendNotification(token, title, body) {
     console.error('Error al enviar el mensaje:', error);
   }
 }
+
+
 /////////////////CIERRA UPDATE
 
 app.post('/insertchat', (req, res) => {
@@ -148,6 +160,7 @@ app.post('/insertchat', (req, res) => {
 });
 
 //////////////////25/09Lunes//////////////NUEVO METODO/////////////
+////////////////CAMBIO 26/09
 app.post('/inserttoken', (req, res) => {
   const { token, idPerson } = req.body;
   const checkQuery = 'SELECT * FROM dbsedes.tokens WHERE token = ?;';
@@ -157,7 +170,7 @@ app.post('/inserttoken', (req, res) => {
       return res.status(500).json({ error: 'Error al verificar token' });
     }
     if (result.length > 0) {
-      const updateQuery = 'UPDATE dbsedes.tokens SET idPerson = ? WHERE token = ?;';
+      const updateQuery = 'UPDATE dbsedes.tokens SET idPerson = ?, status=1 WHERE token = ?;';
       db.query(updateQuery, [idPerson, token], (err, result) => {
         if (err) {
           console.error('Error al actualizar el token:', err);
@@ -178,6 +191,20 @@ app.post('/inserttoken', (req, res) => {
   });
 });
 
+/////////////26/09   NUEVO METODO UPDATE CERRAR SESIÓN TOKEN
+app.put('/logouttoken', (req, res) => {
+  const { token } = req.body;
+  const query = 'UPDATE dbsedes.tokens SET status=0, FechaActualizacion=CURRENT_TIMESTAMP() WHERE token=?;';
+  db.query(query, [token], (err, results) => {
+    if (err) {
+      console.error('Error al Actualizar en la base de datos:', err);
+      res.status(500).json({ error: 'Error al Actualizar el token' });
+      return;
+    }
+    res.json({ message: 'Token Actualizada exitosamente!', data: req.body });
+  });
+});
+
 
 
 app.get('/getmessage/:id', (req, res) => {
@@ -195,9 +222,6 @@ app.get('/getmessage/:id', (req, res) => {
     res.json(results);
   });;
 });
-
-
-/////////////////////////////CAMBIO STATUS//////////////////
 
 app.get('/getchats/:id', (req, res) => {
   const id = req.params.id;
@@ -227,7 +251,6 @@ ORDER BY \
   });;
 });
 
-////////////NUEVO METODO////////////
 app.get('/getchatcliente/:id', (req, res) => {
   const id = req.params.id;
 
