@@ -369,9 +369,9 @@ app.get('/getpersonbyemail/:correo', (req, res) => {
 
 
 
-
+///////////////////////27/09 CAMBIO///////////////
 app.get('/allaccounts', (req, res) => {
-  db.query('  SELECT idPerson, Nombres, Apellidos, FechaNacimiento, Correo, Password, Carnet, Telefono, FechaCreacion, Status, Longitud, Latitud, R.NombreRol FROM Person P INNER JOIN Roles R on R.IdRol = P.IdRol WHERE P.IdRol = 1 OR P.IdRol = 2 OR P.IdRol = 3;', (err, results) => {
+  db.query('  SELECT idPerson, Nombres, Apellidos, FechaNacimiento, Correo, Password, Carnet, Telefono, FechaCreacion, Status, Longitud, Latitud, R.NombreRol FROM Person P INNER JOIN Roles R on R.IdRol = P.IdRol WHERE P.Status=1 AND (P.IdRol !=4);', (err, results) => {
     if (err) {
       console.error('Error al consultar la base de datos:', err);
       res.status(500).json({ error: 'Error al obtener usuarios' });
@@ -381,6 +381,7 @@ app.get('/allaccounts', (req, res) => {
   });
 });
 
+////////////////////27/09///////////CAMBIO
 app.get('/user', (req, res) => {
   const { correo, password } = req.query; // Obtiene el correo y la contraseña de los parámetros de consulta
 
@@ -389,7 +390,7 @@ app.get('/user', (req, res) => {
   }
 
   // Consulta la base de datos para encontrar un usuario con el correo y la contraseña proporcionados
-  db.query('SELECT idPerson, Nombres, Apellidos, FechaNacimiento, Correo, Password, Carnet, Telefono, FechaCreacion, Status, Longitud, Latitud, R.NombreRol FROM Person P INNER JOIN Roles R on R.IdRol = P.IdRol WHERE Correo = ? AND Password = ?', [correo, password], (err, results) => {
+  db.query('SELECT idPerson, Nombres, Apellidos, FechaNacimiento, Correo, Password, Carnet, Telefono, FechaCreacion, Status, Longitud, Latitud, R.NombreRol FROM Person P INNER JOIN Roles R on R.IdRol = P.IdRol WHERE status=1 AND Correo = ? AND Password = ?', [correo, password], (err, results) => {
     if (err) {
       console.error('Error al consultar la base de datos:', err);
       return res.status(500).json({ error: 'Error al obtener el usuario' });
@@ -530,9 +531,9 @@ app.put('/campanas/delete/:id', (req, res) => {
   });
 });
 
-//pasar
+////////////////////27/09/////////CAMBIO
 app.get('/nextidcampanas', (req, res) => {
-  db.query('select MAX(idPerson) AS AUTO_INCREMENT FROM dbSedes.Campañas', (err, results) => {
+  db.query('select idCampañas AS AUTO_INCREMENT FROM dbSedes.Campañas WHERE idCampañas=LAST_INSERT_ID()', (err, results) => {
     if (err) {
 
       console.error('Error al consultar la base de datos:', err);
@@ -549,6 +550,29 @@ app.get('/nextidcampanas', (req, res) => {
 
 });
 
+////////////////27/09 NUEVO METODO//////////
+app.put('/accountdelete', (req, res) => {
+  const { idPerson } = req.body;
+  console.log(idPerson);
+  const query = 'UPDATE dbSedes.person SET status=0 WHERE idPerson=?';
+  db.query(query, [idPerson], (err, results) => {
+    const query1 = 'UPDATE dbSedes.tokens SET status=0 WHERE idPerson=?';
+    db.query(query1, [idPerson], (err, results) => {
+      if(err){
+        console.error('Error al Eliminar en la base de datos:', err);
+        res.status(500).json({ error: 'Error al Eliminar la cuenta' });
+        return
+      }
+    });
+    if (err) {
+      console.error('Error al Eliminar en la base de datos:', err);
+      res.status(500).json({ error: 'Error al Eliminar la cuenta' });
+      
+      return;
+    }
+    res.json({ message: 'Cuenta Eliminada exitosamente!', data: req.body });
+  });
+});
 
 
 //pasar
