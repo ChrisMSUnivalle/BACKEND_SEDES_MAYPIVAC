@@ -429,23 +429,62 @@ app.get('/cardholderbyuser/:id', (req, res) => {
     });
 });
 
+
+/////////////10-10-23 MODIFICACIÓN USUARIO
 app.post('/register', (req, res) => {
-  // Extrae los datos del cuerpo de la solicitud
   const { Nombres, Apellidos, FechaNacimiento, Correo, Password, Carnet, Telefono, FechaCreacion, Status, Longitud, Latitud, IdRol } = req.body;
 
-  // Inserta los datos en la base de datos
-  const query = 'INSERT INTO Person (Nombres, Apellidos, FechaNacimiento, Correo, Password, Carnet, Telefono, FechaCreacion, Status, Longitud, Latitud, IdRol) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-  const values = [Nombres, Apellidos, FechaNacimiento, Correo, Password, Carnet, Telefono, FechaCreacion, Status, Longitud, Latitud, IdRol];
-
-  db.query(query, values, (err, result) => {
+  const checkEmailQuery = 'SELECT * FROM Person WHERE Correo = ? AND Status=1';
+  db.query(checkEmailQuery, [Correo], (err, result) => {
     if (err) {
-      console.error('Error al registrar usuario:', err);
-      res.status(500).json({ error: 'Error al registrar usuario' });
+      console.error('Error al verificar el correo:', err);
+      res.status(500).json({ error: 'Error al verificar el correo' });
       return;
     }
-    res.json({ message: 'Usuario registrado exitosamente', userId: result.insertId });
+
+    if (result.length > 0) {
+      res.status(400).json({ error: 'El correo ya está registrado' });
+      return;
+    }
+
+    const insertQuery = 'INSERT INTO Person (Nombres, Apellidos, FechaNacimiento, Correo, Password, Carnet, Telefono, FechaCreacion, Status, Longitud, Latitud, IdRol) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    const values = [Nombres, Apellidos, FechaNacimiento, Correo, Password, Carnet, Telefono, FechaCreacion, Status, Longitud, Latitud, IdRol];
+
+    db.query(insertQuery, values, (err, result) => {
+      if (err) {
+        console.error('Error al registrar usuario:', err);
+        res.status(500).json({ error: 'Error al registrar usuario' });
+        return;
+      }
+      res.json({ message: 'Usuario registrado exitosamente', userId: result.insertId });
+    });
   });
 });
+
+///////////10-10-23 NUEVO METODO
+app.get('/personbyemail/:email', (req, res) => {
+  const { email } = req.params;
+
+  db.query('SELECT P.idPerson, P.Nombres, P.Apellidos, P.FechaNacimiento, P.Correo, P.Password, P.Carnet, P.Telefono, P.FechaCreacion, P.Status, P.Longitud, P.Latitud, R.NombreRol \
+  FROM Person P \
+  INNER JOIN Roles R on R.IdRol = P.IdRol \
+  WHERE P.Correo=? AND P.Status=1;',
+    [email], (err, results) => {
+      if (err) {
+        console.error('Error al consultar la base de datos:', err);
+        return res.status(500).json({ error: 'Error al obtener el usuario' });
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+
+      // Si se encontró un usuario, lo devuelve como respuesta
+      const usuario = results[0];
+      res.json(usuario);
+    });
+});
+
 
 app.get('/campanas', (req, res) => {
 
