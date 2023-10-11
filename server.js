@@ -506,6 +506,35 @@ app.get('/campanas', (req, res) => {
 
 });
 
+/////////////////////////11-10 NUEVO
+app.post('/registerqr', (req, res) => {
+  const { id } = req.body;
+  const query = 'INSERT INTO dbsedes.qr(QrString) VALUES(?);';
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      console.error('Error al insertar en la base de datos:', err);
+      res.status(500).json({ error: 'Error al registrar la campaña' });
+      return;
+    }
+    res.json({ message: 'Campaña registrada exitosamente!', data: req.body });
+  });
+});
+
+/////////////////11-10 NUEVO
+app.get('/getpetbyid/:id', (req, res) => {
+  const id = req.params.id;
+  db.query('SELECT * FROM dbsedes.mascotas WHERE idMascotas=?', [id], (err, results) => {
+    if (err) {
+      console.error('Error al consultar la base de datos:', err);
+      res.status(500).json({ error: 'Error al obtener id' });
+      return;
+    }
+    res.json(results);
+  });
+});
+
+
+
 
 
 app.post('/campanas', (req, res) => {
