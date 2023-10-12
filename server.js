@@ -533,6 +533,32 @@ app.get('/getpetbyid/:id', (req, res) => {
   });
 });
 
+//////////////////12-10 JOSE BASCOPE
+app.get('/propietariomascotas/:idPersona', (req, res) => {
+  const idPersona = req.params.idPersona; 
+  db.query('SELECT m.idMascotas, m.Nombre, m.Raza, m.Edad, m.Color, m.Descripcion, m.IdPersona, m.Sexo, m.IdQr, p.Carnet as CarnetPropietario FROM dbSedes.Mascotas m INNER JOIN dbSedes.Person p ON m.IdPersona = p.idPerson WHERE m.Status = 1 AND m.IdPersona = ?;', [idPersona], (err, results) => {
+    if (err) {
+      console.error('Error al consultar la base de datos:', err);
+      res.status(500).json({ error: 'Error al obtener mascotas' });
+      return;
+    }
+    res.json(results);
+  });
+});
+
+////////////12-10 JOSE BASCOPE
+app.get('/lastidmascota', (req, res) => {
+  db.query('SELECT MAX(idMascotas) AS ultimo_id FROM mascotas', (err, results) => {
+    if (err) {
+      console.error('Error al consultar la base de datos:', err);
+      res.status(500).json({ error: 'Error al obtener el último ID de mascota' });
+      return;
+    }
+    res.json({ ultimo_id: results[0].ultimo_id });
+    console.log('ultimo id : '+ results[0].ultimo_id);
+  });
+});
+
 
 
 
