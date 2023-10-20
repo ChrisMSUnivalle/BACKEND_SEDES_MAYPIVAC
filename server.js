@@ -236,7 +236,7 @@ app.get('/getchats/:id', (req, res) => {
 SELECT C.* \
 FROM dbSedes.Chats C \
 LEFT JOIN LastMessageDates LMD ON C.idChats = LMD.idChat \
-WHERE (C.idPerson =? OR C.idPersonDestino=? OR C.idPerson IS NULL) AND C.status=1 AND LMD.idChat IS NOT NULL \
+WHERE (C.idPerson =? OR C.idPersonDestino=? OR (C.idPerson IS NULL AND LMD.idChat IS NOT NULL) ) AND C.status=1   \
 ORDER BY \
     CASE WHEN LMD.LastDate IS NULL THEN 1 ELSE 0 END, \
     LMD.LastDate DESC, \
@@ -314,7 +314,7 @@ SELECT P.idPerson, P.Nombres, COALESCE(LMD.mensaje, '') as mensaje \
 FROM dbSedes.Person P \
 LEFT JOIN dbSedes.Chats C ON C.idPersonDestino = P.idPerson OR C.idPerson = P.idPerson \
 LEFT JOIN LastMessageDetails LMD ON LMD.idChat = C.idChats \
-WHERE (C.idPerson = ? OR C.idPersonDestino = ?  OR(C.idPerson IS NULL AND P.idRol=4)) AND P.idPerson !=?  AND C.status=1 AND mensaje!='' \
+WHERE (C.idPerson = ? OR C.idPersonDestino = ?  OR(C.idPerson IS NULL AND P.idRol=4 AND mensaje IS NOT NULL)) AND P.idPerson !=?  AND C.status=1 \
 ORDER BY \
     CASE WHEN LMD.fechaRegistro IS NULL THEN 1 ELSE 0 END, \
     LMD.fechaRegistro DESC, \
@@ -354,6 +354,8 @@ app.get('/getidrol/:id', (req, res) => {
   });
 });
 
+
+///////////////////////20-10
 app.get('/getpersonbyemail/:correo', (req, res) => {
   const email = req.params.correo;
   db.query('SELECT idPerson FROM dbSedes.Person WHERE correo = ?',[email], (err, results) => {
